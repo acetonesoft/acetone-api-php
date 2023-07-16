@@ -5,7 +5,7 @@ Also you can fill background by solid color, by gradient or radial gradient. Or 
 
 **IMPORTANT:** You need register an account and obtain your API key on the https://acetone.ai/
 
-![сщмук](cover.jpg)
+![cover](cover.jpg)
 
 ## Installation
 
