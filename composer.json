@@ -1,6 +1,6 @@
 {
-    "name": "avadim/acetone-api-php",
-    "description": "API class for AceTone.AI - remove background form your images",
+    "name": "acetonesoft/acetone-api-php",
+    "description": "PHP class for API of AceTone.AI - remove background form your images",
     "keywords": [
         "php",
         "image",
@@ -9,13 +9,14 @@
         "photo",
         "remove",
         "bg",
-        "transparent"
+        "transparent",
+        "ai"
     ],
     "type": "library",
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "avadim\\Acetone\\": "./src/Acetone"
+            "AcetoneSoft\\Acetone\\": "./src/Acetone"
         }
     },
     "require": {

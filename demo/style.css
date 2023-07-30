@@ -1,0 +1,34 @@
+table.pics td {
+    padding: 10px;
+}
+.pics-bg, .pics-fg, .pics-res {
+    width: 360px;
+    height: 360px;
+    border: 1px solid #ccc;
+    border-collapse: collapse;
+    box-sizing: content-box;
+    position: relative;
+}
+.pics-res {
+    text-align: center;
+}
+.trans {
+    background: url("pics/fm-bg-trans.png");
+}
+img {
+    max-width: 100%;
+    max-height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+label {
+    display: block;
+    height: 28px;
+}
+.color {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    border: 1px solid #777;
+}

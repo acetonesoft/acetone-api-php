@@ -1,6 +1,6 @@
 <?php
 
-namespace avadim\Acetone;
+namespace AcetoneSoft\Acetone;
 
 class AcetoneException extends \RuntimeException
 {

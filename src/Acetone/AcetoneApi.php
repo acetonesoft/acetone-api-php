@@ -1,14 +1,14 @@
 <?php
 
-namespace avadim\Acetone;
+namespace AcetoneSoft\Acetone;
 
 use GuzzleHttp\Exception\GuzzleException;
 
 class AcetoneApi
 {
     const IMG_FIT_NONE = 'none';
-    const IMG_FIT_COVER = 'сover';
-    const IMG_FIT_CONTAIN = 'сontain';
+    const IMG_FIT_COVER = 'cover';
+    const IMG_FIT_CONTAIN = 'contain';
     const IMG_FIT_STRETCH = 'stretch';
 
     private \GuzzleHttp\Client $client;
@@ -59,7 +59,8 @@ class AcetoneApi
         ];
         if ($options) {
             // param=1&param=2
-            $requestParams['query'] = preg_replace('/%5B(\d+)%5D=/', '=', http_build_query($options));
+            //$requestParams['query'] = preg_replace('/%5B(\d+)%5D=/', '=', http_build_query($options));
+            $requestParams['query'] = http_build_query($options);
         }
 
         $time = microtime(true);
@@ -105,6 +106,14 @@ class AcetoneApi
     }
 
     /**
+     * Color format are
+     *  [255,255,255] - array of int
+     *  "[255,255,255]" - array as string
+     *  "#ffffff" - hex color value
+     *  "#fff" - short hex ("#09f" equals to "#0099ff")
+     *  "ffffff" - hex color value without #
+     *  "fff" - short hex ("09f" equals to "0099ff")
+     *
      * @param array|string $color
      *
      * @return string
@@ -538,7 +547,7 @@ class AcetoneApi
             if (!in_array($format, ['jpg', 'jpeg', 'png', 'webp'])) {
                 throw new AcetoneException(sprintf('Wrong output file format "%s"', $format));
             }
-            $this->options['extension'] = ($format === 'jpg') ? 'jpeg' : $format;
+            $this->options['format'] = ($format === 'jpg') ? 'jpeg' : $format;
         }
 
         return $this->action('remove/background', $fields, $this->options);

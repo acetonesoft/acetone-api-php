@@ -1,6 +1,6 @@
-# API PHP Client for AceTone.AI
+# PHP Client for API of AceTone.ai
 
-You can programmatically remove backgrounds from your images using the API of AceTone.AI. 
+You can programmatically remove backgrounds from your images using the API of AceTone.ai. 
 Also you can fill background by solid color, by gradient or radial gradient. Or you can replace background by other image. 
 
 **IMPORTANT:** You need register an account and obtain your API key on the https://acetone.ai/
@@ -39,11 +39,9 @@ $acetone->fromUrl($imageUrl)->save($outFile);
 $acetone->fromFile($imageFile)->save($outFile);
 
 // Get image from binary string
-$imageString = file_get_contents($fileName);
 $acetone->fromString($imageString)->save($outFile);
 
 // Get image as a base64-string
-$base64 = get_image_base64();
 $acetone->fromBase64($base64)->save($outFile);
 
 ```
