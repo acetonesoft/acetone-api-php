@@ -433,7 +433,7 @@ class AcetoneApi
      *
      * @return $this
      */
-    public function size(int $with, int $height, string $fg_fit = null, string $bg_fit = null): AcetoneApi
+    public function size(int $with, int $height, ?string $fg_fit = null, ?string $bg_fit = null): AcetoneApi
     {
         $this->options['size'] = [$with, $height];
         $this->options['fg_fit'] = $fg_fit ?: 'none';
