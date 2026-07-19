@@ -2,16 +2,15 @@
 ## Interactive demo ##
 
 require __DIR__ . '/../src/autoload.php';
+require __DIR__ . '/../env.php';
+
+acetone_load_env(__DIR__ . '/../.env');
 
 function call($image, $imageBg, $options): ?string
 {
-    $file = __DIR__ . '/.api-key.php';
-    if (!is_file($file)) {
-        die('ERROR: Missing file ' . $file);
-    }
-    $apiKey = include $file;
+    $apiKey = getenv('ACETONE_API_KEY') ?: (string)($_ENV['ACETONE_API_KEY'] ?? '');
     if (!$apiKey || $apiKey === '00000000-0000-0000-0000-000000000000') {
-        die('ERROR: You need to insert a real API key to ' . $file);
+        die('ERROR: You need to set ACETONE_API_KEY (e.g. in .env)');
     }
 
     $acetone = new \AcetoneSoft\Acetone\AcetoneApi($apiKey);

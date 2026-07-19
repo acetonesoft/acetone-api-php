@@ -21,6 +21,9 @@ class AcetoneApi
     protected string $imageBin;
     protected string $imageType;
     protected ?string $bgImageBin = null;
+    protected ?string $logoImageBin = null;
+    protected ?string $maskBin = null;
+    protected ?string $targetImageBin = null;
     protected array $options = [];
 
 
@@ -71,13 +74,15 @@ class AcetoneApi
     }
 
     /**
-     * @return string[]
+     * Generate a temporary filename for a multipart part
+     *
+     * @param string $name
+     *
+     * @return string
      */
-    protected static function _tmpNames(): array
+    protected static function _tmpName(string $name): string
     {
-        $id = time() . '-' . uniqid('');
-
-        return [$id . '-fg.tmp', $id . '-bg.tmp'];
+        return time() . '-' . uniqid('') . '-' . $name . '.tmp';
     }
 
     /**
@@ -147,6 +152,22 @@ class AcetoneApi
         }
 
         return $result;
+    }
+
+    /**
+     * Same input formats as _color(), but normalized to a hex string "#rrggbb".
+     * The API expects hex for shadow_colour and the object-removal bg_color,
+     * unlike bg_colors which takes "r,g,b".
+     *
+     * @param array|string $color
+     *
+     * @return string
+     */
+    protected static function _colorHex($color): string
+    {
+        [$r, $g, $b] = explode(',', self::_color($color));
+
+        return sprintf('#%02x%02x%02x', (int)$r, (int)$g, (int)$b);
     }
 
     /**
@@ -280,6 +301,46 @@ class AcetoneApi
     {
 
         return $this->backgroundImage($image, $bgImage, $options);
+    }
+
+    /**
+     * Remove an object from the image using a mask
+     *
+     * @param string $image
+     * @param string $mask
+     * @param array|null $options
+     *
+     * @return string|null
+     *
+     * @throws GuzzleException
+     */
+    public function objectRemove(string $image, string $mask, ?array $options = []): ?string
+    {
+        return $this->fromString($image)
+            ->options($options)
+            ->mask($mask)
+            ->getObject();
+    }
+
+    /**
+     * Enhance (upscale) an image
+     *
+     * @param string $image
+     * @param string|null $targetImage
+     * @param array|null $options
+     *
+     * @return string|null
+     *
+     * @throws GuzzleException
+     */
+    public function enhanceImage(string $image, ?string $targetImage = null, ?array $options = []): ?string
+    {
+        $this->fromString($image)->options($options);
+        if ($targetImage !== null) {
+            $this->targetImage($targetImage);
+        }
+
+        return $this->getEnhanced();
     }
 
     /**
@@ -513,6 +574,174 @@ class AcetoneApi
     }
 
     /**
+     * Set output quality (1-100)
+     *
+     * @param int $quality
+     *
+     * @return $this
+     */
+    public function quality(int $quality): AcetoneApi
+    {
+        $this->options['quality'] = $quality;
+
+        return $this;
+    }
+
+    /**
+     * Toggle exact cutout mode
+     *
+     * @param bool $exact
+     *
+     * @return $this
+     */
+    public function exact(bool $exact = true): AcetoneApi
+    {
+        $this->options['exact'] = $exact;
+
+        return $this;
+    }
+
+    /**
+     * Add a drop shadow under the foreground
+     *
+     * @param int|null $power
+     * @param int|null $offsetX
+     * @param int|null $offsetY
+     * @param array|string $color
+     *
+     * @return $this
+     */
+    public function shadow(?int $power = 50, ?int $offsetX = 15, ?int $offsetY = 15, $color = '#999999'): AcetoneApi
+    {
+        $this->options['add_shadow'] = true;
+        $this->options['shadow_power'] = $power;
+        $this->options['shadow_offset_x'] = $offsetX;
+        $this->options['shadow_offset_y'] = $offsetY;
+        $this->options['shadow_colour'] = self::_colorHex($color);
+
+        return $this;
+    }
+
+    /**
+     * Overlay a logo image (binary string)
+     *
+     * @param string $logoImage
+     * @param array $options Raw logo_* options (logo_angle, logo_position, logo_opacity, logo_size, logo_padding, logo_correct)
+     *
+     * @return $this
+     */
+    public function logoImage(string $logoImage, array $options = []): AcetoneApi
+    {
+        $this->logoImageBin = $logoImage;
+        $this->options['add_logo'] = true;
+        if ($options) {
+            $this->options = array_merge($this->options, $options);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Overlay a logo image from file
+     *
+     * @param string $logoImageFile
+     * @param array $options Raw logo_* options
+     * @param mixed $context
+     *
+     * @return $this
+     */
+    public function logoImageFile(string $logoImageFile, array $options = [], $context = null): AcetoneApi
+    {
+        return $this->logoImage(self::_readFile($logoImageFile, $context, false, true), $options);
+    }
+
+    /**
+     * Set object mask from binary string (for object removal)
+     *
+     * @param string $mask
+     *
+     * @return $this
+     */
+    public function mask(string $mask): AcetoneApi
+    {
+        $this->maskBin = $mask;
+
+        return $this;
+    }
+
+    /**
+     * Set object mask from file (for object removal)
+     *
+     * @param string $maskFile
+     * @param mixed $context
+     *
+     * @return $this
+     */
+    public function maskFile(string $maskFile, $context = null): AcetoneApi
+    {
+        $this->maskBin = self::_readFile($maskFile, $context, false, true);
+
+        return $this;
+    }
+
+    /**
+     * Set the fill color for the removed object area (object removal)
+     *
+     * @param array|string $color
+     *
+     * @return $this
+     */
+    public function objectBgColor($color): AcetoneApi
+    {
+        $this->options['bg_color'] = self::_colorHex($color);
+
+        return $this;
+    }
+
+    /**
+     * Set the target image from binary string (image enhance)
+     *
+     * @param string $targetImage
+     *
+     * @return $this
+     */
+    public function targetImage(string $targetImage): AcetoneApi
+    {
+        $this->targetImageBin = $targetImage;
+
+        return $this;
+    }
+
+    /**
+     * Set the target image from file (image enhance)
+     *
+     * @param string $targetImageFile
+     * @param mixed $context
+     *
+     * @return $this
+     */
+    public function targetImageFile(string $targetImageFile, $context = null): AcetoneApi
+    {
+        $this->targetImageBin = self::_readFile($targetImageFile, $context, false, true);
+
+        return $this;
+    }
+
+    /**
+     * Set enhance mode
+     *
+     * @param string $mode
+     *
+     * @return $this
+     */
+    public function enhanceMode(string $mode = 'solo'): AcetoneApi
+    {
+        $this->options['enhance_mode'] = $mode;
+
+        return $this;
+    }
+
+    /**
      * Get result image
      *
      * @param string|null $format
@@ -524,23 +753,78 @@ class AcetoneApi
      */
     public function get(?string $format = null): ?string
     {
+        return $this->_run('remove/background', [
+            'bgimage'   => ($this->options['bg_mode'] === 'image') ? $this->bgImageBin : null,
+            'logoimage' => $this->logoImageBin,
+        ], $format);
+    }
+
+    /**
+     * Get result of object removal (requires a mask)
+     *
+     * @param string|null $format
+     *
+     * @return string|null
+     *
+     * @throws GuzzleException
+     * @throws AcetoneException
+     */
+    public function getObject(?string $format = null): ?string
+    {
+        if (empty($this->maskBin)) {
+            throw new AcetoneException('Mask image not define');
+        }
+
+        return $this->_run('remove/object', ['mask' => $this->maskBin], $format);
+    }
+
+    /**
+     * Get result of image enhance
+     *
+     * @param string|null $format
+     *
+     * @return string|null
+     *
+     * @throws GuzzleException
+     * @throws AcetoneException
+     */
+    public function getEnhanced(?string $format = null): ?string
+    {
+        return $this->_run('enhance/image', ['target_image' => $this->targetImageBin], $format);
+    }
+
+    /**
+     * Build the multipart request and call the given endpoint
+     *
+     * @param string $endpoint
+     * @param array $extraFiles Map of part name => binary (skipped when binary is null/empty)
+     * @param string|null $format
+     *
+     * @return string|null
+     *
+     * @throws GuzzleException
+     * @throws AcetoneException
+     */
+    protected function _run(string $endpoint, array $extraFiles, ?string $format = null): ?string
+    {
         if (empty($this->imageBin)) {
             throw new AcetoneException('Source image not define');
         }
-        $names = $this->_tmpNames();
         $fields = [
             [
                 'name'     => 'image',
                 'contents' => $this->imageBin,
-                'filename' => $names[0],
+                'filename' => self::_tmpName('image'),
             ],
         ];
-        if ($this->options['bg_mode'] === 'image' && $this->bgImageBin) {
-            $fields[] = [
-                'name'     => 'bgimage',
-                'contents' => $this->bgImageBin,
-                'filename' => $names[1],
-            ];
+        foreach ($extraFiles as $name => $contents) {
+            if ($contents) {
+                $fields[] = [
+                    'name'     => $name,
+                    'contents' => $contents,
+                    'filename' => self::_tmpName($name),
+                ];
+            }
         }
         if ($format) {
             $format = strtolower($format);
@@ -550,7 +834,7 @@ class AcetoneApi
             $this->options['format'] = ($format === 'jpg') ? 'jpeg' : $format;
         }
 
-        return $this->action('remove/background', $fields, $this->options);
+        return $this->action($endpoint, $fields, $this->options);
     }
 
     /**
@@ -565,8 +849,51 @@ class AcetoneApi
      */
     public function save($filename): int
     {
-        $extension = pathinfo($filename, PATHINFO_EXTENSION);
-        $image = $this->get($extension);
+        return $this->_put($filename, $this->get(pathinfo($filename, PATHINFO_EXTENSION)));
+    }
+
+    /**
+     * Save object-removal result to file
+     *
+     * @param $filename
+     *
+     * @return int
+     *
+     * @throws GuzzleException
+     * @throws AcetoneException
+     */
+    public function saveObject($filename): int
+    {
+        return $this->_put($filename, $this->getObject(pathinfo($filename, PATHINFO_EXTENSION)));
+    }
+
+    /**
+     * Save enhance result to file
+     *
+     * @param $filename
+     *
+     * @return int
+     *
+     * @throws GuzzleException
+     * @throws AcetoneException
+     */
+    public function saveEnhanced($filename): int
+    {
+        return $this->_put($filename, $this->getEnhanced(pathinfo($filename, PATHINFO_EXTENSION)));
+    }
+
+    /**
+     * Write result image to a file (creating the directory if needed)
+     *
+     * @param string $filename
+     * @param string|null $image
+     *
+     * @return int
+     *
+     * @throws AcetoneException
+     */
+    protected function _put(string $filename, ?string $image): int
+    {
         $dir = dirname($filename);
         if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
             throw new AcetoneException(sprintf('Directory creation error "%s"', $dir));

@@ -18,7 +18,7 @@ composer require avadim/acetone-api-php
 ## Quick Start
 
 ```php
-use avadim\Acetone\AcetoneApi;
+use AcetoneSoft\Acetone\AcetoneApi;
 
 $acetone = new AcetoneApi($apiKey);
 $acetone->fromFile($sourceImageFile)->save($targetImageFile);
@@ -105,6 +105,76 @@ $imageStr = $acetone->fromFile($imageFile)->get('webp');
 $image = imagecreatefromstring($imageStr);
 // Some manipulations
 imagejpeg($im, 'image.jpg');
+```
+
+### Output Quality and Exact Cutout
+
+```php
+// Set output quality (1-100) and toggle the exact-cutout mode
+$acetone->fromFile($imageFile)
+    ->quality(90)
+    ->exact(true)
+    ->save($outFile);
+```
+
+### Drop Shadow
+
+```php
+// Add a drop shadow under the foreground
+// shadow(power, offsetX, offsetY, color)
+$acetone->fromFile($imageFile)
+    ->shadow(50, 15, 15, '#999999')
+    ->save($outFile);
+```
+
+### Logo Overlay
+
+```php
+// Overlay a logo (from a binary string or a file)
+$acetone->fromFile($imageFile)
+    ->logoImageFile($logoFile, ['logo_position' => 0, 'logo_size' => 10, 'logo_opacity' => 1])
+    ->save($outFile);
+
+// Logo from a binary string
+$acetone->fromFile($imageFile)
+    ->logoImage($logoBinary)
+    ->save($outFile);
+```
+
+### Object Removal
+
+Remove an object described by a mask (white = area to remove).
+
+```php
+// Fluent style
+$acetone->fromFile($imageFile)
+    ->maskFile($maskFile)
+    ->objectBgColor('#ffffff')
+    ->saveObject($outFile);
+
+// One-shot style (takes binary strings)
+$result = $acetone->objectRemove(
+    file_get_contents($imageFile),
+    file_get_contents($maskFile)
+);
+
+// Get result as a binary string
+$imageStr = $acetone->fromFile($imageFile)->maskFile($maskFile)->getObject('png');
+```
+
+### Image Enhance
+
+```php
+// Fluent style
+$acetone->fromFile($imageFile)
+    ->enhanceMode('solo')
+    ->saveEnhanced($outFile);
+
+// One-shot style
+$result = $acetone->enhanceImage(file_get_contents($imageFile));
+
+// Get result as a binary string
+$imageStr = $acetone->fromFile($imageFile)->getEnhanced('png');
 ```
 
 

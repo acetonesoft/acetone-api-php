@@ -7,7 +7,6 @@ namespace AcetoneSoft\Acetone;
 use AcetoneSoft\Acetone\AcetoneApi;
 use PHPUnit\Framework\TestCase;
 
-require_once __DIR__ . '/../vendor/autoload.php';
 class AcetoneApiPhpTest extends TestCase
 {
     protected string $imageFile = __DIR__ . '/../demo/pics/fg-1200x1200.jpg';
@@ -26,12 +25,9 @@ class AcetoneApiPhpTest extends TestCase
     protected function getApiKey(): string
     {
         if (!$this->apiKey) {
-            $file = __DIR__ . '/.api-key.php';
-            $this->assertFileExists($file);
-
-            $this->apiKey = include $file;
+            $this->apiKey = getenv('ACETONE_API_KEY') ?: (string)($_ENV['ACETONE_API_KEY'] ?? '');
             if (!$this->apiKey || $this->apiKey === '00000000-0000-0000-0000-000000000000') {
-                die('ERROR: You need to insert a real API key to ' . $file);
+                $this->markTestSkipped('Set ACETONE_API_KEY (e.g. in .env) to run the API tests');
             }
         }
 
@@ -161,5 +157,59 @@ class AcetoneApiPhpTest extends TestCase
         $rgba = $this->_rgba($out, 1, 799);
         $this->assertEquals(['red' => 0, 'green' => 0, 'blue' => 255, 'alpha' => 0], $rgba);
         unlink($out);
+    }
+
+    public function testShadowAndQuality()
+    {
+        $acetone = new AcetoneApi($this->getApiKey());
+
+        $image = $acetone->fromFile($this->imageFile)
+            ->shadow(50, 15, 15, '#999999')
+            ->quality(90)
+            ->exact()
+            ->get('png');
+
+        $size = getimagesizefromstring($image);
+        $this->assertNotFalse($size);
+        $this->assertEquals('image/png', $size['mime']);
+    }
+
+    public function testObjectRemove()
+    {
+        $acetone = new AcetoneApi($this->getApiKey());
+
+        // Build a simple mask: black background with a white rectangle in the centre
+        [$w, $h] = getimagesize($this->imageFile);
+        $mask = imagecreatetruecolor($w, $h);
+        imagefill($mask, 0, 0, imagecolorallocate($mask, 0, 0, 0));
+        imagefilledrectangle(
+            $mask,
+            (int)($w * 0.4), (int)($h * 0.4),
+            (int)($w * 0.6), (int)($h * 0.6),
+            imagecolorallocate($mask, 255, 255, 255)
+        );
+        ob_start();
+        imagepng($mask);
+        $maskBin = ob_get_clean();
+
+        $image = $acetone->objectRemove(file_get_contents($this->imageFile), $maskBin);
+
+        $size = getimagesizefromstring($image);
+        $this->assertNotFalse($size);
+        $this->assertGreaterThan(0, $size[0]);
+        $this->assertGreaterThan(0, $size[1]);
+    }
+
+    public function testEnhance()
+    {
+        $acetone = new AcetoneApi($this->getApiKey());
+
+        $image = $acetone->fromFile($this->imageFile)
+            ->enhanceMode('solo')
+            ->getEnhanced('png');
+
+        $size = getimagesizefromstring($image);
+        $this->assertNotFalse($size);
+        $this->assertEquals('image/png', $size['mime']);
     }
 }
