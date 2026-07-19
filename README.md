@@ -1,87 +1,107 @@
-# PHP Client for API of AceTone.ai
+# PHP-клиент для API AceTone.ai
 
-You can programmatically remove backgrounds from your images using the API of AceTone.ai. 
-Also you can fill background by solid color, by gradient or radial gradient. Or you can replace background by other image. 
+[English](README.en.md) | **Русский**
 
-**IMPORTANT:** You need register an account and obtain your API key on the https://acetone.ai/
+С помощью API AceTone.ai можно программно удалять фон с изображений. Также фон можно
+залить сплошным цветом, линейным или радиальным градиентом, размыть или обесцветить,
+либо заменить другим изображением. Кроме того, клиент поддерживает удаление объектов по
+маске и улучшение/апскейл изображения.
+
+**ВАЖНО:** Нужно зарегистрировать аккаунт и получить API-ключ на https://acetone.ai/
 
 ![cover](cover.jpg)
 
-## Installation
+## Установка
 
-Install via composer
+Установка через composer
 
 ```
-composer require avadim/acetone-api-php
+composer require acetonesoft/acetone-api-php
 ```
 
-## Quick Start
+Требуется PHP >= 7.4 и зависимость `guzzlehttp/guzzle`.
+
+## Быстрый старт
 
 ```php
 use AcetoneSoft\Acetone\AcetoneApi;
 
 $acetone = new AcetoneApi($apiKey);
 $acetone->fromFile($sourceImageFile)->save($targetImageFile);
-
 ```
 
-## Advanced Usage
+## Два стиля API
 
-### Sources
+Клиент предоставляет два взаимозаменяемых стиля:
 
-The image can be obtained from a link, from a file, from a binary string, or from a base64-string 
+1. **Fluent-билдер** — задайте источник через `fromFile()` / `fromUrl()` / `fromString()` /
+   `fromBase64()`, соедините цепочкой модификаторы, затем вызовите терминальный геттер
+   (`get()` / `getObject()` / `getEnhanced()`) или сейвер (`save()` / `saveObject()` /
+   `saveEnhanced()`).
+2. **One-shot методы** — принимают исходное изображение как **бинарную строку** и возвращают
+   результат тоже бинарной строкой (см. [One-shot методы](#one-shot-методы)).
+
+HTTP-запрос не выполняется, пока не вызван терминальный геттер/сейвер.
+
+## Расширенное использование
+
+### Источники
+
+Изображение можно получить по ссылке, из файла, из бинарной строки или из base64-строки.
 
 ```php
-// Get source image from URL
+// Исходное изображение по URL
 $acetone->fromUrl($imageUrl)->save($outFile);
 
-// Get source image from file
+// Исходное изображение из файла
 $acetone->fromFile($imageFile)->save($outFile);
 
-// Get image from binary string
+// Изображение из бинарной строки
 $acetone->fromString($imageString)->save($outFile);
 
-// Get image as a base64-string
+// Изображение из base64-строки
 $acetone->fromBase64($base64)->save($outFile);
-
 ```
 
-### Manipulations With Background 
+### Манипуляции с фоном
 
 ```php
-// Just remove background
-$acetone->fromFile($imageUrl)->bgRemove()->save($outFile);
+// Просто удалить фон
+$acetone->fromFile($imageFile)->bgRemove()->save($outFile);
 
-// Set background color
-$acetone->fromFile($imageUrl)->bgColor('f00')->save($outFile);
-$acetone->fromFile($imageUrl)->bgColor('#f00')->save($outFile);
-$acetone->fromFile($imageUrl)->bgColor([255,0,0])->save($outFile);
+// Задать цвет фона (hex с "#" или без, короткий hex либо RGB-массив)
+$acetone->fromFile($imageFile)->bgColor('f00')->save($outFile);
+$acetone->fromFile($imageFile)->bgColor('#f00')->save($outFile);
+$acetone->fromFile($imageFile)->bgColor([255, 0, 0])->save($outFile);
 
-// Fill background by a linear gradient
+// Залить фон линейным градиентом (второй аргумент — угол вектора градиента)
 $colors = ['f00', '33c'];
 $vector = -30;
-$acetone->fromFile($imageUrl)->bgRadialGradient($colors, $vector)->save($outFile);
+$acetone->fromFile($imageFile)->bgGradient($colors, $vector)->save($outFile);
 
-// Fill background by a radial gradient
+// Залить фон радиальным градиентом (второй аргумент — центр [x, y])
 $colors = ['f00', '33c'];
 $center = [120, 240];
-$acetone->fromFile($imageUrl)->bgGradient($colors, $center)->save($outFile);
+$acetone->fromFile($imageFile)->bgRadialGradient($colors, $center)->save($outFile);
 
-// Set grayscale mode of background
-$acetone->fromFile($imageUrl)->bgGrayscale()->save($outFile);
+// Размыть фон (степень размытия)
+$acetone->fromFile($imageFile)->bgBlur(20)->save($outFile);
 
-// Set background image from binary string
-$bgImageFile = 'path/to/new/background';
-$bgImage = file_get_contents($bgImageFile);
-$acetone->fromFile($imageUrl)->bgImage($bgImage)->save($outFile);
+// Обесцветить фон
+$acetone->fromFile($imageFile)->bgGrayscale()->save($outFile);
 
-// Or set background image from file
-$bgImageFile = 'path/to/new/background';
-$acetone->fromFile($imageUrl)->bgImageFile($bgImage)->save($outFile);
+// Задать фоновое изображение из бинарной строки
+$bgImage = file_get_contents('path/to/new/background');
+$acetone->fromFile($imageFile)->bgImage($bgImage)->save($outFile);
 
+// Либо задать фоновое изображение из файла
+$acetone->fromFile($imageFile)->bgImageFile('path/to/new/background')->save($outFile);
 ```
 
-### Resize Result Image
+### Изменение размера результата
+
+`size(width, height, $fgFit, $bgFit)`. Константы вписывания: `IMG_FIT_NONE`, `IMG_FIT_COVER`,
+`IMG_FIT_CONTAIN`, `IMG_FIT_STRETCH`.
 
 ```php
 $acetone->fromFile($imageFile)
@@ -90,91 +110,146 @@ $acetone->fromFile($imageFile)
     ->save($outFile);
 ```
 
-### Crop Result Image to Foreground Fit
+### Обрезка результата по границам объекта
+
 ```php
 $acetone->fromFile($imageFile)
     ->crop()
     ->get();
 ```
 
-### Get Result Image as a Binary String 
+### Качество вывода и точное вырезание
 
 ```php
-// You can define output format - png, jpg or webp (png is default)
-$imageStr = $acetone->fromFile($imageFile)->get('webp');
-$image = imagecreatefromstring($imageStr);
-// Some manipulations
-imagejpeg($im, 'image.jpg');
-```
-
-### Output Quality and Exact Cutout
-
-```php
-// Set output quality (1-100) and toggle the exact-cutout mode
+// Задать качество (1-100) и включить режим точного вырезания
 $acetone->fromFile($imageFile)
     ->quality(90)
     ->exact(true)
     ->save($outFile);
 ```
 
-### Drop Shadow
+### Тень
 
 ```php
-// Add a drop shadow under the foreground
-// shadow(power, offsetX, offsetY, color)
+// Добавить падающую тень под объектом
+// shadow(power, offsetX, offsetY, color) — цвет должен быть в hex-формате
 $acetone->fromFile($imageFile)
     ->shadow(50, 15, 15, '#999999')
     ->save($outFile);
 ```
 
-### Logo Overlay
+### Наложение логотипа
 
 ```php
-// Overlay a logo (from a binary string or a file)
+// Наложить логотип из файла с «сырыми» опциями logo_*
 $acetone->fromFile($imageFile)
     ->logoImageFile($logoFile, ['logo_position' => 0, 'logo_size' => 10, 'logo_opacity' => 1])
     ->save($outFile);
 
-// Logo from a binary string
+// Логотип из бинарной строки
 $acetone->fromFile($imageFile)
     ->logoImage($logoBinary)
     ->save($outFile);
 ```
 
-### Object Removal
+Поддерживаемые «сырые» опции логотипа: `logo_angle`, `logo_position`, `logo_opacity`,
+`logo_size`, `logo_padding`, `logo_correct`.
 
-Remove an object described by a mask (white = area to remove).
+### Удаление объекта
+
+Удаление объекта, заданного маской (белое = удаляемая область).
 
 ```php
-// Fluent style
+// Fluent-стиль — цвет заливки должен быть в hex-формате
 $acetone->fromFile($imageFile)
     ->maskFile($maskFile)
     ->objectBgColor('#ffffff')
     ->saveObject($outFile);
 
-// One-shot style (takes binary strings)
+// Маску можно передать и бинарной строкой
+$acetone->fromFile($imageFile)
+    ->mask(file_get_contents($maskFile))
+    ->getObject('png');
+
+// One-shot стиль (принимает бинарные строки)
 $result = $acetone->objectRemove(
     file_get_contents($imageFile),
     file_get_contents($maskFile)
 );
-
-// Get result as a binary string
-$imageStr = $acetone->fromFile($imageFile)->maskFile($maskFile)->getObject('png');
 ```
 
-### Image Enhance
+### Улучшение изображения
+
+Улучшение/апскейл изображения. Опционально можно передать целевое изображение,
+к которому подтягивать результат.
 
 ```php
-// Fluent style
+// Fluent-стиль
 $acetone->fromFile($imageFile)
     ->enhanceMode('solo')
     ->saveEnhanced($outFile);
 
-// One-shot style
+// С целевым изображением (из файла или бинарной строки)
+$acetone->fromFile($imageFile)
+    ->targetImageFile($targetFile)
+    ->saveEnhanced($outFile);
+
+// One-shot стиль
 $result = $acetone->enhanceImage(file_get_contents($imageFile));
 
-// Get result as a binary string
+// Получить результат бинарной строкой
 $imageStr = $acetone->fromFile($imageFile)->getEnhanced('png');
 ```
 
+### Результат в виде бинарной строки
 
+```php
+// Можно указать формат вывода — png, jpg или webp (по умолчанию png)
+$imageStr = $acetone->fromFile($imageFile)->get('webp');
+$im = imagecreatefromstring($imageStr);
+// Какие-то манипуляции
+imagejpeg($im, 'image.jpg');
+```
+
+### Произвольные опции API
+
+Метод `options()` — «escape hatch» для передачи любых «сырых» параметров API, у которых нет
+отдельного метода. Они мёржатся в query-string запроса.
+
+```php
+$acetone->fromFile($imageFile)
+    ->options(['some_api_param' => 'value'])
+    ->save($outFile);
+```
+
+### Время запроса
+
+`getTime()` возвращает время выполнения (в секундах) последнего вызова API.
+
+```php
+$acetone->fromFile($imageFile)->save($outFile);
+echo $acetone->getTime(); // например, 1.234
+```
+
+## One-shot методы
+
+Принимают исходное изображение (и, где нужно, дополнительное изображение/маску) как
+**бинарные строки** и возвращают результат бинарной строкой:
+
+```php
+$src = file_get_contents($imageFile);
+
+$acetone->backgroundRemove($src);
+$acetone->backgroundColor($src, '#ff0000');
+$acetone->backgroundGradient($src, ['f00', '33c'], -30);        // линейный, угол вектора
+$acetone->backgroundRadialGradient($src, ['f00', '33c'], [120, 240]); // радиальный, центр
+$acetone->backgroundBlur($src, 20);
+$acetone->backgroundGrayscale($src);
+$acetone->backgroundImage($src, file_get_contents($bgFile));
+$acetone->backgroundReplace($src, file_get_contents($bgFile));  // псевдоним backgroundImage
+$acetone->objectRemove($src, file_get_contents($maskFile));
+$acetone->enhanceImage($src);
+```
+
+Каждый one-shot метод дополнительно принимает завершающий массив `$options`,
+который передаётся в `options()`.
